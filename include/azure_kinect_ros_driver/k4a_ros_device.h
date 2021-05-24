@@ -34,6 +34,7 @@
 //
 #include "azure_kinect_ros_driver/k4a_calibration_transform_data.h"
 #include "azure_kinect_ros_driver/k4a_ros_device_params.h"
+#include "azure_kinect_ros_driver/laserscan_kinect.h"
 
 class K4AROSDevice
 {
@@ -59,6 +60,10 @@ class K4AROSDevice
 
   k4a_result_t getRgbPointCloudInRgbFrame(const k4a::capture& capture, sensor_msgs::PointCloud2Ptr& point_cloud);
   k4a_result_t getRgbPointCloudInDepthFrame(const k4a::capture& capture, sensor_msgs::PointCloud2Ptr& point_cloud);
+
+  void getLaserScanFromDepth(const sensor_msgs::ImagePtr& depth_msg,
+                             const sensor_msgs::CameraInfoPtr& info_msg,
+                             sensor_msgs::LaserScanPtr& scan_msg);
 
   k4a_result_t getImuFrame(const k4a_imu_sample_t& capture, sensor_msgs::ImuPtr& imu_frame);
 
@@ -137,6 +142,10 @@ class K4AROSDevice
   ros::Publisher pointcloud_publisher_;
 
   ros::Publisher laserscan_publisher_;
+
+  // Laserscan Converter
+  laserscan_kinect::LaserScanKinect converter_;
+  bool converter_initialized_;
 
 #if defined(K4A_BODY_TRACKING)
   ros::Publisher body_marker_publisher_;

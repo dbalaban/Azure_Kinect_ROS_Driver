@@ -26,6 +26,7 @@
 using namespace ros;
 using namespace sensor_msgs;
 using namespace image_transport;
+using namespace laserscan_kinect;
 using namespace std;
 
 #if defined(K4A_BODY_TRACKING)
@@ -45,7 +46,8 @@ K4AROSDevice::K4AROSDevice(const NodeHandle& n, const NodeHandle& p)
     image_transport_(n),
     last_capture_time_usec_(0),
     last_imu_time_usec_(0),
-    imu_stream_end_of_file_(false)
+    imu_stream_end_of_file_(false),
+    converter_initialized_(false)
 {
   // Collect ROS parameters from the param server or from the command line
 #define LIST_ENTRY(param_variable, param_help_string, param_type, param_default_val) \
@@ -244,6 +246,9 @@ K4AROSDevice::K4AROSDevice(const NodeHandle& n, const NodeHandle& p)
 
   if (params_.point_cloud_as_laser_scan) {
     laserscan_publisher_ = node_.advertise<LaserScan>("kinect_scan", 1);
+
+    // set camera params for converter
+    
   }
 
 #if defined(K4A_BODY_TRACKING)
@@ -536,6 +541,51 @@ k4a_result_t K4AROSDevice::getRgbPointCloudInDepthFrame(const k4a::capture& capt
 
   return fillColorPointCloud(calibration_data_.point_cloud_image_, calibration_data_.transformed_rgb_image_,
                              point_cloud);
+}
+
+void K4AROSDevice::getLaserScanFromDepth(const ImagePtr& depth_msg,
+                                         const CameraInfoPtr& info_msg,
+                                         LaserScanPtr& scan_msg)
+{
+  if (!converter_initialized_)
+  {
+    const std::string frame = calibration_data_.tf_prefix_ + calibration_data_.depth_camera_frame_;
+    converter_.setOutputFrame(frame);
+
+    if (params_.depth_mode == "WFOV_UNBINNED")
+    {
+      converter_.setMinRange(0.25);
+      converter_.setMaxRange(2.21);
+    }
+    else if (params_.depth_mode == "WFOV_2X2BINNED")
+    {
+      converter_.setMinRange(0.25);
+      converter_.setMaxRange(2.88);
+    }
+    else if (params_.depth_mode == "NFOV_2X2BINNED")
+    {
+      converter_.setMinRange(0.5);
+      converter_.setMaxRange(5.46);
+    }
+    else if (params_.depth_mode == "NFOV_UNBINNED")
+    {
+      converter_.setMinRange(0.5);
+      converter_.setMaxRange(3.86);
+    } else {
+      converter_.setMinRange(0.0);
+      converter_.setMaxRange(0.0);
+    }
+
+    converter_.setScanHeight(depth_msg->height);
+    converter_.setSensorMountHeight(1.0);
+    converter_.setSensorTiltAngle(0.0);
+    converter_.setGroundRemove(true);
+    converter_.setGroundMargin(0.03);
+    converter_.setDepthImgRowStep(2);
+
+    converter_initialized_ = true;
+  }
+  scan_msg = converter_.getLaserScanMsg(depth_msg, info_msg);
 }
 
 k4a_result_t K4AROSDevice::getRgbPointCloudInRgbFrame(const k4a::capture& capture,
@@ -883,6 +933,7 @@ void K4AROSDevice::framePublisherThread()
     ImagePtr depth_rect_frame(new Image);
     ImagePtr ir_raw_frame(new Image);
     PointCloud2Ptr point_cloud(new PointCloud2);
+    LaserScanPtr laser_scan(new LaserScan);
 
     if (params_.depth_enabled)
     {
@@ -1179,8 +1230,11 @@ void K4AROSDevice::framePublisherThread()
 
       if (params_.point_cloud_as_laser_scan)
       {
-      //TODO: reduce point cloud to laser scan
-      //TODO: publish laser scan
+      // reduce point cloud to laser scan
+        CameraInfoPtr caminfo = boost::shared_ptr<CameraInfo>(&depth_raw_camera_info);
+        getLaserScanFromDepth(depth_raw_frame, caminfo, laser_scan);
+      // publish laser scan
+        laserscan_publisher_.publish(laser_scan);
       }
     }
 
