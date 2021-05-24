@@ -128,6 +128,10 @@ K4AROSDevice::K4AROSDevice(const NodeHandle& n, const NodeHandle& p)
         ROS_WARN("Disabling rgb point cloud because recording has no depth track");
         params_.rgb_point_cloud = false;
       }
+      if (params_.point_cloud_as_laser_scan) {
+        ROS_WARN("Disabling point cloud as laser scan because recording has no depth track");
+        params_.point_cloud_as_laser_scan = false;
+      }
     }
   }
   else
@@ -236,6 +240,10 @@ K4AROSDevice::K4AROSDevice(const NodeHandle& n, const NodeHandle& p)
 
   if (params_.point_cloud || params_.rgb_point_cloud) {
     pointcloud_publisher_ = node_.advertise<PointCloud2>("points2", 1);
+  }
+
+  if (params_.point_cloud_as_laser_scan) {
+    laserscan_publisher_ = node_.advertise<LaserScan>("kinect_scan", 1);
   }
 
 #if defined(K4A_BODY_TRACKING)
@@ -1152,7 +1160,7 @@ void K4AROSDevice::framePublisherThread()
           return;
         }
       }
-      else if (params_.point_cloud)
+      else if (params_.point_cloud || params_.point_cloud_as_laser_scan)
       {
         result = getPointCloud(capture, point_cloud);
 
@@ -1167,6 +1175,12 @@ void K4AROSDevice::framePublisherThread()
       if (params_.point_cloud || params_.rgb_point_cloud)
       {
         pointcloud_publisher_.publish(point_cloud);
+      }
+
+      if (params_.point_cloud_as_laser_scan)
+      {
+      //TODO: reduce point cloud to laser scan
+      //TODO: publish laser scan
       }
     }
 

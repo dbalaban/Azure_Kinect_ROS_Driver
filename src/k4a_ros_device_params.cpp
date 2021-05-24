@@ -174,6 +174,12 @@ k4a_result_t K4AROSDeviceParams::GetDeviceConfig(k4a_device_configuration_t* con
     return K4A_RESULT_FAILED;
   }
 
+  if (point_cloud_as_laser_scan && (configuration->depth_mode == K4A_DEPTH_MODE_PASSIVE_IR))
+  {
+    ROS_ERROR_STREAM("Incompatible options: cannot generate point cloud as laser scan if depth camera is using PASSIVE_IR mode.");
+    return K4A_RESULT_FAILED;
+  }
+
   // Ensure that point_cloud is enabled if using rgb_point_cloud
   if (rgb_point_cloud && !point_cloud)
   {

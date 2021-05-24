@@ -20,6 +20,7 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/Temperature.h>
 #include <k4a/k4a.hpp>
 #include <k4arecord/playback.hpp>
@@ -134,6 +135,8 @@ class K4AROSDevice
   ros::Publisher imu_orientation_publisher_;
 
   ros::Publisher pointcloud_publisher_;
+
+  ros::Publisher laserscan_publisher_;
 
 #if defined(K4A_BODY_TRACKING)
   ros::Publisher body_marker_publisher_;

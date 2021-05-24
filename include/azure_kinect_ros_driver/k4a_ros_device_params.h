@@ -53,6 +53,8 @@
              "Whether the RGB pointcloud is rendered in the depth frame (true) or RGB frame (false). Will either "     \
              "match the resolution of the depth camera (true) or the RGB camera (false)",                              \
              bool, true)                                                                                               \
+  LIST_ENTRY(point_cloud_as_laser_scan,                                                                                \
+             "whether to reduce a point cloud to a laser scan. Requires depth_enabled=true", bool, true)               \
   LIST_ENTRY(tf_prefix, "The prefix prepended to tf frame ID's", std::string, std::string())                           \
   LIST_ENTRY(recording_file, "Path to a recording file to open instead of opening a device", std::string,              \
              std::string(""))                                                                                          \
