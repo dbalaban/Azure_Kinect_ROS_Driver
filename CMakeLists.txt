@@ -21,6 +21,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   nodelet
   cv_bridge
+  image_geometry
 )
 
 ###################################
@@ -52,6 +53,7 @@ add_executable(${PROJECT_NAME}_node
   src/k4a_ros_device.cpp
   src/k4a_ros_device_params.cpp
   src/k4a_calibration_transform_data.cpp
+  src/laserscan_kinect.cpp
   )
 
 target_compile_features(${PROJECT_NAME}_node PUBLIC cxx_std_11)

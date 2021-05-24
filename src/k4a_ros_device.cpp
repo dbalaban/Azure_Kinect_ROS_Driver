@@ -1160,7 +1160,7 @@ void K4AROSDevice::framePublisherThread()
           return;
         }
       }
-      else if (params_.point_cloud || params_.point_cloud_as_laser_scan)
+      else if (params_.point_cloud)
       {
         result = getPointCloud(capture, point_cloud);
 
