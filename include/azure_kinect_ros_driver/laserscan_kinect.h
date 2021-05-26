@@ -54,6 +54,18 @@ class LaserScanKinect {
    */
   void setScanHeight(const int scan_height);
   /**
+   * @brief setScanRadius sets the radius of the depth image which will be used in conversion process
+   * 
+   * @param scan_radius Radius of used part of depth image in pixels.
+   */
+   void setScanRadius(const int scan_radius);
+   /**
+    * @brief setApplyScanRadius sets the scan type, when applied a circular cut is added
+    * 
+    * @param apply
+    */
+   void setApplyScanRadius(const bool apply) {apply_scan_radius_ = apply;}
+  /**
    * @brief setDepthImgRowStep
    *
    * @param row_step
@@ -151,6 +163,8 @@ private:
   float range_min_{0};                    ///< Stores the current minimum range to use
   float range_max_{0};                    ///< Stores the current maximum range to use
   unsigned scan_height_{0};               ///< Number of pixel rows used to scan computing
+  bool apply_scan_radius_{false};
+  unsigned scan_radius_{0};
   unsigned depth_img_row_step_{0};        ///< Row step in depth map processing
   bool  cam_model_update_{false};         ///< If continously calibration update required
   float sensor_mount_height_{0};          ///< Height of sensor mount from ground

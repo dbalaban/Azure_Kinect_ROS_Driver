@@ -128,8 +128,18 @@ void LaserScanKinect::setScanHeight(const int scan_height) {
     scan_height_ = scan_height;
   }
   else {
-    scan_height_ = 10;
+    scan_height_ = 100;
     throw std::runtime_error("Incorrect value of scan height parameter. Set default value: 100.");
+  }
+}
+
+void LaserScanKinect::setScanRadius(const int scan_radius) {
+  if (scan_radius > 0) {
+    scan_radius_ = scan_radius;
+  }
+  else {
+    scan_radius_ = 100;
+    throw std::runtime_error("Incorrect value of scan radius parameter. Set default value: 100.");
   }
 }
 
@@ -242,6 +252,15 @@ float LaserScanKinect::getSmallestValueInColumn(const sensor_msgs::ImagePtr &dep
 
   // Loop over pixels in column. Calculate z_min in column
   for (size_t i = image_vertical_offset_; i < image_vertical_offset_ + scan_height_; i += depth_img_row_step_) {
+
+    if (apply_scan_radius_) {
+      float x = col - cam_model_.cx();
+      float y = i - cam_model_.cy();
+      float radius = sqrt(x*x + y*y);
+      if (radius > scan_radius_) {
+        continue;
+      }
+    }
 
     float depth_raw = 0.0;
     float depth_m = 0.0;
@@ -397,6 +416,17 @@ sensor_msgs::ImagePtr LaserScanKinect::prepareDbgImage(
     if (line1_row >= 0 && line1_row < img->height && line2_row >= 0 && line2_row < img->height) {
       pts.push_back({line1_row, i});
       pts.push_back({line2_row, i});
+    }
+  }
+
+  if (apply_scan_radius_) {
+    for (unsigned i = 0; i < img->width; ++i) {
+      const float x = i - cam_model_.cx();
+      const float y = sqrt(scan_radius_*scan_radius_ - x*x);
+      const float y1 = cam_model_.cy() + y;
+      const float y2 = cam_model_.cy() - y;
+      pts.push_back({y1, i});
+      pts.push_back({y2, i});
     }
   }
 
