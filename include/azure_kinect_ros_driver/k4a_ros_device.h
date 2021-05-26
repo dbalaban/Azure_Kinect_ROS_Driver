@@ -62,8 +62,9 @@ class K4AROSDevice
   k4a_result_t getRgbPointCloudInDepthFrame(const k4a::capture& capture, sensor_msgs::PointCloud2Ptr& point_cloud);
 
   void getLaserScanFromDepth(const sensor_msgs::ImagePtr& depth_msg,
-                             const sensor_msgs::CameraInfoPtr& info_msg,
-                             sensor_msgs::LaserScanPtr& scan_msg);
+                             const sensor_msgs::CameraInfo& info_msg,
+                             sensor_msgs::LaserScanPtr& scan_msg,
+                             sensor_msgs::ImagePtr& dbg_img);
 
   k4a_result_t getImuFrame(const k4a_imu_sample_t& capture, sensor_msgs::ImuPtr& imu_frame);
 
@@ -141,6 +142,8 @@ class K4AROSDevice
 
   ros::Publisher pointcloud_publisher_;
 
+  image_transport::Publisher scan_debug_publisher_;
+  ros::Publisher scan_debug_camerainfo_publisher_;
   ros::Publisher laserscan_publisher_;
 
   // Laserscan Converter

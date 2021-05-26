@@ -246,9 +246,8 @@ K4AROSDevice::K4AROSDevice(const NodeHandle& n, const NodeHandle& p)
 
   if (params_.point_cloud_as_laser_scan) {
     laserscan_publisher_ = node_.advertise<LaserScan>("kinect_scan", 1);
-
-    // set camera params for converter
-    
+    scan_debug_publisher_ = image_transport_.advertise("scan_debug/image_raw", 1);
+    scan_debug_camerainfo_publisher_ = node_.advertise<CameraInfo>("scan_debug/camera_info", 1);
   }
 
 #if defined(K4A_BODY_TRACKING)
@@ -544,12 +543,14 @@ k4a_result_t K4AROSDevice::getRgbPointCloudInDepthFrame(const k4a::capture& capt
 }
 
 void K4AROSDevice::getLaserScanFromDepth(const ImagePtr& depth_msg,
-                                         const CameraInfoPtr& info_msg,
-                                         LaserScanPtr& scan_msg)
+                                         const CameraInfo& info_msg,
+                                         LaserScanPtr& scan_msg,
+                                         ImagePtr& dbg_img)
 {
   if (!converter_initialized_)
   {
-    const std::string frame = calibration_data_.tf_prefix_ + calibration_data_.depth_camera_frame_;
+    const std::string frame = calibration_data_.tf_prefix_ + calibration_data_.kinect_scan_frame_;
+    std::cout << "kinect scan publishing frame: " << frame << std::endl;
     converter_.setOutputFrame(frame);
 
     if (params_.depth_mode == "WFOV_UNBINNED")
@@ -576,16 +577,19 @@ void K4AROSDevice::getLaserScanFromDepth(const ImagePtr& depth_msg,
       converter_.setMaxRange(0.0);
     }
 
-    converter_.setScanHeight(depth_msg->height);
-    converter_.setSensorMountHeight(1.0);
+    converter_.setScanHeight(0.8*info_msg.height);
+    converter_.setSensorMountHeight(0.97);
     converter_.setSensorTiltAngle(0.0);
     converter_.setGroundRemove(true);
     converter_.setGroundMargin(0.03);
     converter_.setDepthImgRowStep(2);
 
+    converter_.setPublishDbgImgEnable(true);
+
     converter_initialized_ = true;
   }
   scan_msg = converter_.getLaserScanMsg(depth_msg, info_msg);
+  dbg_img = converter_.getDbgImage();
 }
 
 k4a_result_t K4AROSDevice::getRgbPointCloudInRgbFrame(const k4a::capture& capture,
@@ -934,6 +938,7 @@ void K4AROSDevice::framePublisherThread()
     ImagePtr ir_raw_frame(new Image);
     PointCloud2Ptr point_cloud(new PointCloud2);
     LaserScanPtr laser_scan(new LaserScan);
+    ImagePtr scan_dbg(new Image);
 
     if (params_.depth_enabled)
     {
@@ -973,7 +978,9 @@ void K4AROSDevice::framePublisherThread()
         // Only create depth frame when we are using a device or we have an depth image.
         // Recordings may not have synchronized captures. For unsynchronized captures without depth image skip depth
         // frame.
-        if ((depth_raw_publisher_.getNumSubscribers() > 0 || depth_raw_camerainfo_publisher_.getNumSubscribers() > 0) &&
+        if ((depth_raw_publisher_.getNumSubscribers() > 0 
+          || depth_raw_camerainfo_publisher_.getNumSubscribers() > 0
+          || laserscan_publisher_.getNumSubscribers() > 0) &&
             (k4a_device_ || capture.get_depth_image() != nullptr))
         {
           result = getDepthFrame(capture, depth_raw_frame);
@@ -1227,16 +1234,28 @@ void K4AROSDevice::framePublisherThread()
       {
         pointcloud_publisher_.publish(point_cloud);
       }
-
-      if (params_.point_cloud_as_laser_scan)
-      {
-      // reduce point cloud to laser scan
-        CameraInfoPtr caminfo = boost::shared_ptr<CameraInfo>(&depth_raw_camera_info);
-        getLaserScanFromDepth(depth_raw_frame, caminfo, laser_scan);
-      // publish laser scan
-        laserscan_publisher_.publish(laser_scan);
-      }
     }
+
+    if (laserscan_publisher_.getNumSubscribers() > 0 &&
+        (k4a_device_ || (capture.get_depth_image() != nullptr)) &&
+        params_.point_cloud_as_laser_scan)
+    {
+      // reduce point cloud to laser scan
+      getLaserScanFromDepth(depth_raw_frame,
+                            depth_raw_camera_info,
+                            laser_scan,
+                            scan_dbg);
+      // publish laser scan
+      laserscan_publisher_.publish(laser_scan);
+      scan_debug_publisher_.publish(scan_dbg);
+      scan_debug_camerainfo_publisher_.publish(depth_raw_camera_info);
+    } 
+    // else {
+    //   std::string isCaptured = (capture.get_depth_image() != nullptr) ? "yes" : "no";
+    //   std::cout << "number of subscribers: " << laserscan_publisher_.getNumSubscribers()
+    //             << std::endl << "depth image captured?" << isCaptured << std::endl;
+
+    // }
 
     if (loop_rate.cycleTime() > loop_rate.expectedCycleTime())
     {

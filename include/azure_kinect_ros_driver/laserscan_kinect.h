@@ -28,7 +28,7 @@ class LaserScanKinect {
    */
   sensor_msgs::LaserScanPtr getLaserScanMsg(
     const sensor_msgs::ImagePtr& depth_msg,
-    const sensor_msgs::CameraInfoPtr& info_msg);
+    const sensor_msgs::CameraInfo& info_msg);
   /**
    * @brief setOutputFrame sets the frame to output laser scan
    * @param frame

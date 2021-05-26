@@ -49,6 +49,7 @@ public:
   std::string camera_base_frame_ = "camera_base";
   std::string rgb_camera_frame_ = "rgb_camera_link";
   std::string depth_camera_frame_ = "depth_camera_link";
+  std::string kinect_scan_frame_ = "kinect_scan_link";
   std::string imu_frame_ = "imu_link";
 
 private:
@@ -60,6 +61,7 @@ private:
   void publishRgbToDepthTf();
   void publishImuToDepthTf();
   void publishDepthToBaseTf();
+  void publishKinectScanToDepthTf();
 
   tf2::Quaternion getDepthToBaseRotationCorrection();
   tf2::Vector3 getDepthToBaseTranslationCorrection();

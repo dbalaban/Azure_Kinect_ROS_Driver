@@ -15,7 +15,7 @@ namespace laserscan_kinect {
 
 sensor_msgs::LaserScanPtr LaserScanKinect::getLaserScanMsg(
         const sensor_msgs::ImagePtr & depth_msg,
-        const sensor_msgs::CameraInfoPtr & info_msg) {
+        const sensor_msgs::CameraInfo & info_msg) {
   // Configure message if necessary
   if (!is_scan_msg_configured_ || cam_model_update_) {
     cam_model_.fromCameraInfo(info_msg);
@@ -63,7 +63,9 @@ sensor_msgs::LaserScanPtr LaserScanKinect::getLaserScanMsg(
     // Check if scan_height is in image_height
     if (scan_height_ / 2.0 > cam_model_.cy() || scan_height_ / 2.0 > depth_msg->height - cam_model_.cy()) {
       std::stringstream ss;
-      ss << "scan_height ( " << scan_height_ << " pixels) is too large for the image height.";
+      ss << "scan_height ( " << scan_height_ << " pixels) is too large for the image height.\n";
+      ss << "must be less than twice of cy (" << cam_model_.cy() << ") and twice the difference from depth height ("
+         << depth_msg->height << ")";
       throw std::runtime_error(ss.str());
     }
     image_vertical_offset_ = static_cast<int>(cam_model_.cy()- scan_height_ / 2.0);

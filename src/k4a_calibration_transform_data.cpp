@@ -74,6 +74,7 @@ void K4ACalibrationTransformData::initialize(const K4AROSDeviceParams params)
   publishDepthToBaseTf();
   publishImuToDepthTf();
   publishRgbToDepthTf();
+  publishKinectScanToDepthTf();
 }
 
 int K4ACalibrationTransformData::getDepthWidth() { return k4a_calibration_.depth_camera_calibration.resolution_width; }
@@ -221,6 +222,25 @@ void K4ACalibrationTransformData::publishDepthToBaseTf()
   static_transform.transform.rotation.y = depth_rotation.y();
   static_transform.transform.rotation.z = depth_rotation.z();
   static_transform.transform.rotation.w = depth_rotation.w();
+
+  static_broadcaster_.sendTransform(static_transform);
+}
+
+void K4ACalibrationTransformData::publishKinectScanToDepthTf()
+{
+  tf2::Vector3 scan_to_depth_translation(0.0f, 0.0f, 0.0f);
+  tf2::Matrix3x3 scan_to_depth_rotation(
+      0, -1,  0,
+      0,  0, -1,
+      1,  0,  0);
+  tf2::Transform scan_to_depth_transform(scan_to_depth_rotation, scan_to_depth_translation);
+
+  geometry_msgs::TransformStamped static_transform;
+  static_transform.transform = tf2::toMsg(scan_to_depth_transform);
+
+  static_transform.header.stamp = ros::Time::now();
+  static_transform.header.frame_id = tf_prefix_ + depth_camera_frame_;
+  static_transform.child_frame_id = tf_prefix_ + kinect_scan_frame_;
 
   static_broadcaster_.sendTransform(static_transform);
 }
