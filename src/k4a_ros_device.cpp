@@ -578,9 +578,9 @@ void K4AROSDevice::getLaserScanFromDepth(const ImagePtr& depth_msg,
     }
 
     converter_.setScanHeight(0.8*info_msg.height);
-    converter_.setScanRadius(0.98*info_msg.height/2);
-    converter_.setApplyScanRadius(true);
-    converter_.setSensorMountHeight(0.97);
+    converter_.setScanRadius(0.8*info_msg.height/2);
+    converter_.setApplyScanRadius(false);
+    converter_.setSensorMountHeight(0.9);
     converter_.setSensorTiltAngle(0.0);
     converter_.setGroundRemove(true);
     converter_.setGroundMargin(0.03);
