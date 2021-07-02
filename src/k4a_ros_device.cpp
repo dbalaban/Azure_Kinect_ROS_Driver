@@ -47,7 +47,11 @@ K4AROSDevice::K4AROSDevice(const NodeHandle& n, const NodeHandle& p)
     last_capture_time_usec_(0),
     last_imu_time_usec_(0),
     imu_stream_end_of_file_(false),
-    converter_initialized_(false)
+    converter_initialized_(false),
+    undistort_(&calibration_data_.k4a_calibration_,
+               K4A_CALIBRATION_TYPE_DEPTH,
+               K4A_DEVICE_CONFIG_INIT_DISABLE_ALL,
+               undistort::INTERPOLATION_BILINEAR_DEPTH)
 {
   // Collect ROS parameters from the param server or from the command line
 #define LIST_ENTRY(param_variable, param_help_string, param_type, param_default_val) \
@@ -397,6 +401,36 @@ k4a_result_t K4AROSDevice::getDepthFrame(const k4a::capture& capture, sensor_msg
   }
 
   return renderDepthToROS(depth_image, k4a_depth_frame);
+}
+
+k4a_result_t K4AROSDevice::getDepthFrame(const k4a::capture& capture,
+                                         sensor_msgs::ImagePtr& raw_depth_image,
+                                         sensor_msgs::ImagePtr& undistored_depth_image,
+                                         bool rectified = false)
+{
+  k4a::image k4a_depth_frame = capture.get_depth_image();
+
+  if (!k4a_depth_frame)
+  {
+    ROS_ERROR("Cannot render depth frame: no frame");
+    return K4A_RESULT_FAILED;
+  }
+
+  k4a_image_t k4a_undistorted_depth;
+  undistort_.Undistort(k4a_depth_frame.handle(), k4a_undistorted_depth);
+  k4a::image undistorted(k4a_undistorted_depth);
+
+  if (rectified)
+  {
+    calibration_data_.k4a_transformation_.depth_image_to_color_camera(k4a_depth_frame,
+                                                                      &calibration_data_.transformed_depth_image_);
+
+    renderDepthToROS(raw_depth_image, calibration_data_.transformed_depth_image_);
+  } else {
+    renderDepthToROS(raw_depth_image, k4a_depth_frame);
+  }
+
+  return renderDepthToROS(undistored_depth_image, undistorted);
 }
 
 k4a_result_t K4AROSDevice::renderDepthToROS(sensor_msgs::ImagePtr& depth_image, k4a::image& k4a_depth_frame)
@@ -867,6 +901,7 @@ void K4AROSDevice::framePublisherThread()
 
   CameraInfo rgb_raw_camera_info;
   CameraInfo depth_raw_camera_info;
+  CameraInfo depth_undistorted_camera_info;
   CameraInfo rgb_rect_camera_info;
   CameraInfo depth_rect_camera_info;
   CameraInfo ir_raw_camera_info;
@@ -876,6 +911,7 @@ void K4AROSDevice::framePublisherThread()
   k4a::capture capture;
 
   calibration_data_.getDepthCameraInfo(depth_raw_camera_info);
+  calibration_data_.getDepthCameraInfo(depth_undistorted_camera_info);
   calibration_data_.getRgbCameraInfo(rgb_raw_camera_info);
   calibration_data_.getDepthCameraInfo(rgb_rect_camera_info);
   calibration_data_.getRgbCameraInfo(depth_rect_camera_info);
@@ -936,6 +972,7 @@ void K4AROSDevice::framePublisherThread()
     ImagePtr rgb_raw_frame(new Image);
     ImagePtr rgb_rect_frame(new Image);
     ImagePtr depth_raw_frame(new Image);
+    ImagePtr depth_undistorted_frame(new Image);
     ImagePtr depth_rect_frame(new Image);
     ImagePtr ir_raw_frame(new Image);
     PointCloud2Ptr point_cloud(new PointCloud2);
@@ -985,7 +1022,12 @@ void K4AROSDevice::framePublisherThread()
           || laserscan_publisher_.getNumSubscribers() > 0) &&
             (k4a_device_ || capture.get_depth_image() != nullptr))
         {
-          result = getDepthFrame(capture, depth_raw_frame);
+          
+          if (params_.point_cloud_as_laser_scan) {
+            result = getDepthFrame(capture, depth_raw_frame, depth_undistorted_frame);
+          } else {
+            result = getDepthFrame(capture, depth_raw_frame);
+          }
 
           if (result != K4A_RESULT_SUCCEEDED)
           {
@@ -1005,6 +1047,15 @@ void K4AROSDevice::framePublisherThread()
 
             depth_raw_publisher_.publish(depth_raw_frame);
             depth_raw_camerainfo_publisher_.publish(depth_raw_camera_info);
+
+            if (params_.point_cloud_as_laser_scan) {
+              depth_undistorted_camera_info.header.stamp = capture_time;
+              depth_undistorted_frame->header.stamp = capture_time;
+              depth_undistorted_frame->header.frame_id = calibration_data_.tf_prefix_ + calibration_data_.depth_camera_frame_;
+
+              depth_raw_publisher_.publish(depth_undistorted_frame);
+              depth_raw_camerainfo_publisher_.publish(depth_undistorted_camera_info);
+            }
           }
         }
 
@@ -1017,7 +1068,11 @@ void K4AROSDevice::framePublisherThread()
              depth_rect_camerainfo_publisher_.getNumSubscribers() > 0) &&
             (k4a_device_ || capture.get_depth_image() != nullptr))
         {
-          result = getDepthFrame(capture, depth_rect_frame, true /* rectified */);
+          if (params_.point_cloud_as_laser_scan) {
+            result = getDepthFrame(capture, depth_raw_frame, depth_undistorted_frame);
+          } else {
+            result = getDepthFrame(capture, depth_raw_frame);
+          }
 
           if (result != K4A_RESULT_SUCCEEDED)
           {
@@ -1243,8 +1298,8 @@ void K4AROSDevice::framePublisherThread()
         params_.point_cloud_as_laser_scan)
     {
       // reduce point cloud to laser scan
-      getLaserScanFromDepth(depth_raw_frame,
-                            depth_raw_camera_info,
+      getLaserScanFromDepth(depth_undistorted_frame,
+                            depth_undistorted_camera_info,
                             laser_scan,
                             scan_dbg);
       // publish laser scan

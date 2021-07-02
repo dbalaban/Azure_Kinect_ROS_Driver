@@ -35,6 +35,7 @@
 #include "azure_kinect_ros_driver/k4a_calibration_transform_data.h"
 #include "azure_kinect_ros_driver/k4a_ros_device_params.h"
 #include "azure_kinect_ros_driver/laserscan_kinect.h"
+#include "azure_kinect_ros_driver/k4a_depth_undistortion.h"
 
 class K4AROSDevice
 {
@@ -54,7 +55,14 @@ class K4AROSDevice
 
   void getRgbCameraInfo(sensor_msgs::CameraInfo& camera_info);
 
-  k4a_result_t getDepthFrame(const k4a::capture& capture, sensor_msgs::ImagePtr& depth_frame, bool rectified);
+  k4a_result_t getDepthFrame(const k4a::capture& capture,
+                             sensor_msgs::ImagePtr& depth_frame,
+                             bool rectified);
+
+  k4a_result_t getDepthFrame(const k4a::capture& capture,
+                             sensor_msgs::ImagePtr& raw_depth_frame,
+                             sensor_msgs::ImagePtr& undistorted_depth_frame,
+                             bool rectified);
 
   k4a_result_t getPointCloud(const k4a::capture& capture, sensor_msgs::PointCloud2Ptr& point_cloud);
 
@@ -95,6 +103,8 @@ class K4AROSDevice
   void framePublisherThread();
   void imuPublisherThread();
 
+  undistort::K4ADepthUndistortion undistort_;
+
   // Gets a timestap from one of the captures images
   std::chrono::microseconds getCaptureTimestamp(const k4a::capture& capture);
 
@@ -128,6 +138,9 @@ class K4AROSDevice
 
   image_transport::Publisher depth_raw_publisher_;
   ros::Publisher depth_raw_camerainfo_publisher_;
+
+  image_transport::Publisher depth_undistorted_publisher_;
+  ros::Publisher depth_undistorted_camerainfo_publisher_;
 
   image_transport::Publisher depth_rect_publisher_;
   ros::Publisher depth_rect_camerainfo_publisher_;
