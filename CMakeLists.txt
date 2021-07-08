@@ -59,6 +59,10 @@ add_executable(${PROJECT_NAME}_node
 
 target_compile_features(${PROJECT_NAME}_node PUBLIC cxx_std_11)
 
+add_executable(floor_depth
+  src/get_floor_depth.cpp
+)
+
 add_library(${PROJECT_NAME}_nodelet
   src/k4a_ros_bridge_nodelet.cpp
   src/k4a_ros_device.cpp
@@ -122,6 +126,11 @@ target_link_libraries(${PROJECT_NAME}_node
   ${catkin_LIBRARIES}
 )
 
+target_link_libraries(floor_depth
+  ${K4A_LIBS}
+  ${catkin_LIBRARIES}
+)
+
 target_link_libraries(${PROJECT_NAME}_nodelet
   ${K4A_LIBS}
   ${catkin_LIBRARIES}
@@ -136,6 +145,12 @@ target_link_libraries(${PROJECT_NAME}_nodelet
 
 ## Mark executables and/or libraries for installation
 install(TARGETS ${PROJECT_NAME}_node
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(TARGETS floor_depth
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
