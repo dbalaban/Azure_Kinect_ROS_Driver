@@ -44,7 +44,7 @@ int main(int argc, char** argv)
 
   k4a_calibration_type_t camera = K4A_CALIBRATION_TYPE_DEPTH;
 
-  cv::Mat depth = cv::Mat::zeros(1024, 1024, CV_32F);
+  cv::Mat depth = cv::Mat::zeros(1024, 1024, CV_16UC1);
   cv::Mat sampling = cv::Mat::zeros(plane_width, plane_width, CV_16U);
 
   k4a_float3_t ray;
@@ -73,10 +73,31 @@ int main(int argc, char** argv)
     }
   }
 
+  k4a::capture capture;
+  k4a::image k4a_depth_frame = capture.get_depth_image();
+  cv::Mat cv_depth_frame(k4a_depth_frame.get_height_pixels(), k4a_depth_frame.get_width_pixels(), CV_16UC1,
+                         k4a_depth_frame.get_buffer());
+
   std::ofstream myfile;
   myfile.open("expected_floor_depth.csv");
   myfile << cv::format(depth, cv::Formatter::FMT_CSV) << std::endl;
   myfile.close();
+
+  myfile.open("observed_depth.csv");
+  myfile << cv::format(cv_depth_frame, cv::Formatter::FMT_CSV) << std::endl;
+  myfile.close();
+
+  cv::Mat diff = cv_depth_frame - depth;
+  myfile.open("depth_diff.csv");
+  myfile << cv::format(cv_depth_frame, cv::Formatter::FMT_CSV) << std::endl;
+  myfile.close();
+
+  cv::Mat mask;
+  cv::threshold(depth, mask, 0, 1, cv::THRESH_BINARY);
+  mask.convertTo(mask, CV_8UC1);
+
+  const double norm = cv::norm(diff, cv::NORM_L1, mask);
+  std::cout << "total difference: " << norm << std::endl;
 
   cv::imwrite("valid_spaces.jpg", sampling);
 
