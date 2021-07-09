@@ -75,6 +75,15 @@ int main(int argc, char** argv)
   }
 
   k4a::capture capture;
+  k4a_device_configuration_t k4a_configuration;
+  k4a_configuration.wired_sync_mode = K4A_WIRED_SYNC_MODE_STANDALONE;
+  k4a_configuration.subordinate_delay_off_master_usec = 0;
+  k4a_configuration.color_resolution = K4A_COLOR_RESOLUTION_OFF;
+  k4a_configuration.depth_mode = K4A_DEPTH_MODE_WFOV_UNBINNED;
+  k4a_configuration.camera_fps = K4A_FRAMES_PER_SECOND_5;
+  k4a_configuration.synchronized_images_only = false;
+
+  device.start_cameras(&k4a_configuration);
   device.get_capture(&capture, std::chrono::milliseconds(K4A_WAIT_INFINITE));
   while (capture.get_depth_image() == nullptr) {
     std::cout << "no depth image captured\n";
