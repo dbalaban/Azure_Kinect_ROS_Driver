@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <opencv2/opencv.hpp>
+#include<unistd.h>
 
 bool GetK4ADevice(k4a::device& device_) {
   uint32_t k4a_device_count = k4a::device::get_installed_count();
@@ -74,9 +75,16 @@ int main(int argc, char** argv)
   }
 
   k4a::capture capture;
+  device.get_capture(&capture, std::chrono::milliseconds(K4A_WAIT_INFINITE));
+  while (capture.get_depth_image() == nullptr) {
+    std::cout << "no depth image captured\n";
+    usleep(500);
+  }
   k4a::image k4a_depth_frame = capture.get_depth_image();
   cv::Mat cv_depth_frame(k4a_depth_frame.get_height_pixels(), k4a_depth_frame.get_width_pixels(), CV_16UC1,
-                         k4a_depth_frame.get_buffer());
+                         k4a_depth_frame.get_buffer(), (size_t)k4a_depth_frame.get_stride_bytes());
+
+  std::cout << "captured depth frame size: " << cv_depth_frame.cols << " X " << cv_depth_frame.rows << std::endl;
 
   std::ofstream myfile;
   myfile.open("expected_floor_depth.csv");
