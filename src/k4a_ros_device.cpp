@@ -626,6 +626,18 @@ void K4AROSDevice::getLaserScanFromDepth(const ImagePtr& depth_msg,
     converter_.setPublishDbgImgEnable(true);
 
     converter_initialized_ = true;
+
+    cv_bridge::CvImagePtr cv_ptr;
+    try {
+      cv_ptr = cv_bridge::toCvCopy(depth_msg, sensor_msgs::image_encodings::TYPE_32FC1);
+      cv::Mat depth_image = cv_ptr->image;
+      std::ofstream myfile;
+      myfile.open("ros_floor_depth.csv");
+      myfile << cv::format(depth_image, cv::Formatter::FMT_CSV) << std::endl;
+      myfile.close();
+    } catch (cv_bridge::Exception& e) {
+      ROS_ERROR("cv_bridge exception: %s", e.what());
+    }
   }
   scan_msg = converter_.getLaserScanMsg(depth_msg, info_msg);
   dbg_img = converter_.getDbgImage();
