@@ -597,7 +597,8 @@ void K4AROSDevice::getLaserScanFromDepth(const ImagePtr& depth_msg,
       converter_.setMaxRange(2.21);
       converter_.setUseFloorDepthMap(true);
       converter_.setResolution(1024, 1024);
-      converter_.loadFloorDepthMap("result.csv");
+      converter_.loadFloorDepthMap(
+          "/home/users/dbalaban/catkin_ws/src/Azure_Kinect_ROS_Driver/depth_maps/floor_depth.csv");
     }
     else if (params_.depth_mode == "WFOV_2X2BINNED")
     {
