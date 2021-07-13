@@ -283,7 +283,13 @@ float LaserScanKinect::getSmallestValueInColumn(const sensor_msgs::ImagePtr &dep
     // Check if point is in ranges and find min value in column
     if (depth_raw >= range_min_ && depth_raw <= range_max_) {
       if (ground_remove_enable_) {
-        if (depth_m < depth_min && depth_raw < dist_to_ground_corrected[i]) {
+        float ground_depth;
+        if (loaded_floor_depth_ && use_floor_depth_map_) { 
+          ground_depth = floor_map_.at<float>(i, col) - ground_margin_;
+        } else {
+          ground_depth = dist_to_ground_corrected[i];
+        }
+        if (depth_m < depth_min && (depth_raw < ground_depth || ground_depth <= 0)) {
           depth_min = depth_m;
           depth_min_row = i;
         }
@@ -442,6 +448,36 @@ sensor_msgs::ImagePtr LaserScanKinect::prepareDbgImage(
   }
 
   return img;
+}
+
+bool LaserScanKinect::loadFloorDepthMap(const std::string fname) {
+  floor_map_.create(resolution_.first, resolution_.second, CV_32FC1);
+
+  std::ifstream inputfile(fname);
+  std::string current_line;
+  // Start reading lines as long as there are lines in the file
+  for (size_t row = 0; row < resolution_.first; row++) {
+    getline(inputfile, current_line);
+    if (current_line == "") {
+      std::cout << "WARNING: fewer lines than expected in floor map image resolution, defaulting to calculated depth\n";
+      use_floor_depth_map_ = false;
+      return false;
+    }
+    std::stringstream temp(current_line);
+    std::string single_value;
+    for (size_t col = 0; col < resolution_.second; col++) {
+      getline(temp,single_value,',');
+      if (single_value == "") {
+        std::cout << "WARNING: fewer columns than expected in floor map image resolution, defaulting to calculated depth\n";
+        use_floor_depth_map_ = false;
+        return false;
+      }
+      floor_map_.at<float>(row, col) = std::stof(single_value) / 1000.;
+    }
+  }
+
+  loaded_floor_depth_ = true;
+  return true;
 }
 
 } // namespace laserscan_kinect

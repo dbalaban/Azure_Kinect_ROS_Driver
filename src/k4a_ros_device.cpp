@@ -595,6 +595,9 @@ void K4AROSDevice::getLaserScanFromDepth(const ImagePtr& depth_msg,
     {
       converter_.setMinRange(0.25);
       converter_.setMaxRange(2.21);
+      converter_.setUseFloorDepthMap(true);
+      converter_.setResolution(1024, 1024);
+      converter_.loadFloorDepthMap("result.csv");
     }
     else if (params_.depth_mode == "WFOV_2X2BINNED")
     {

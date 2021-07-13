@@ -4,12 +4,15 @@
 #include <string>
 #include <mutex>
 #include <list>
+#include <fstream>
 
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/LaserScan.h>
 #include <image_geometry/pinhole_camera_model.h>
 
 #include <azure_kinect_ros_driver/math.h>
+
+#include <cv_bridge/cv_bridge.h>
 
 namespace laserscan_kinect {
 
@@ -116,6 +119,18 @@ class LaserScanKinect {
    * @param enable
    */
   void setPublishDbgImgEnable(const bool enable) { publish_dbg_image_ = enable; }
+  /**
+   * @brief setUseFloorDepthMap
+   * @param enable
+   */
+  void setUseFloorDepthMap(const bool enable) { use_floor_depth_map_ = enable; }
+
+  void setResolution(const size_t height, const size_t width) {
+    resolution_.first = height;
+    resolution_.second = width;
+  }
+
+  bool loadFloorDepthMap(const std::string fname);
 
   void setThreadsNum(unsigned threads_num);
 
@@ -173,7 +188,10 @@ private:
   float ground_margin_{0};                ///< Margin for floor remove feature (in meters)
   bool  tilt_compensation_enable_{false}; ///< Determines if tilt compensation feature is on
   bool  publish_dbg_image_{false};        ///< Determines if debug image should be published
-  unsigned threads_num_{1};                ///< Determines threads number used in image processing
+  unsigned threads_num_{1};               ///< Determines threads number used in image processing
+  bool  use_floor_depth_map_{false};      ///< Determines if ground removal uses pre-currated floor depth map
+  bool  loaded_floor_depth_{false};       ///< Determines if ground map was successfully loaded
+  std::pair<size_t, size_t> resolution_;  ///< Expected depth image resolution
 
   /// Published scan message
   sensor_msgs::LaserScanPtr scan_msg_;
@@ -195,6 +213,8 @@ private:
 
   /// The vertical offset of image based on calibration data
   int image_vertical_offset_{0};
+
+  cv::Mat floor_map_;
 
   sensor_msgs::ImagePtr dbg_image_;
   std::list<std::pair<int, int>> min_dist_points_indices_;
