@@ -233,6 +233,10 @@ K4AROSDevice::K4AROSDevice(const NodeHandle& n, const NodeHandle& p)
   depth_raw_publisher_ = image_transport_.advertise("depth/image_raw", 1);
   depth_raw_camerainfo_publisher_ = node_.advertise<CameraInfo>("depth/camera_info", 1);
 
+  depth_undistorted_publisher_ = image_transport_.advertise("depth/image_undistorted", 1);
+  depth_undistorted_camerainfo_publisher_ = node_.advertise<CameraInfo>("depth/undistorted_camera_info", 1);
+
+
   depth_rect_publisher_ = image_transport_.advertise("depth_to_rgb/image_raw", 1);
   depth_rect_camerainfo_publisher_ = node_.advertise<CameraInfo>("depth_to_rgb/camera_info", 1);
 
@@ -1048,13 +1052,15 @@ void K4AROSDevice::framePublisherThread()
             depth_raw_publisher_.publish(depth_raw_frame);
             depth_raw_camerainfo_publisher_.publish(depth_raw_camera_info);
 
-            if (params_.point_cloud_as_laser_scan) {
+            if (params_.point_cloud_as_laser_scan
+                && depth_undistorted_publisher_.getNumSubscribers() > 0) {
+              std::cout << "publishing undistorted image frame";
               depth_undistorted_camera_info.header.stamp = capture_time;
               depth_undistorted_frame->header.stamp = capture_time;
               depth_undistorted_frame->header.frame_id = calibration_data_.tf_prefix_ + calibration_data_.depth_camera_frame_;
 
-              depth_raw_publisher_.publish(depth_undistorted_frame);
-              depth_raw_camerainfo_publisher_.publish(depth_undistorted_camera_info);
+              depth_undistorted_publisher_.publish(depth_undistorted_frame);
+              depth_undistorted_camerainfo_publisher_.publish(depth_undistorted_camera_info);
             }
           }
         }

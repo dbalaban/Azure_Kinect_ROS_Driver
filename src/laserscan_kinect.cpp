@@ -282,7 +282,6 @@ float LaserScanKinect::getSmallestValueInColumn(const sensor_msgs::ImagePtr &dep
 
     // Check if point is in ranges and find min value in column
     if (depth_raw >= range_min_ && depth_raw <= range_max_) {
-
       if (ground_remove_enable_) {
         if (depth_m < depth_min && depth_raw < dist_to_ground_corrected[i]) {
           depth_min = depth_m;
@@ -297,6 +296,10 @@ float LaserScanKinect::getSmallestValueInColumn(const sensor_msgs::ImagePtr &dep
       }
     }
   }
+
+  // std::cout << "row: " << depth_min_row << "; col: " << col
+  //           << "; depth_raw: " << depth_min << "; ground depth: "
+  //           << dist_to_ground_corrected[depth_min_row] << std::endl;
 
   {
     std::lock_guard<std::mutex> guard(points_indices_mutex_);
