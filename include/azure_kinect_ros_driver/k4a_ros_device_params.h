@@ -37,7 +37,7 @@
              "The mode of the depth camera. Options are: NFOV_2X2BINNED, NFOV_UNBINNED, WFOV_2X2BINNED, "              \
              "WFOV_UNBINNED, PASSIVE_IR",                                                                              \
              std::string, std::string("NFOV_UNBINNED"))                                                                \
-  LIST_ENTRY(color_enabled, "True if color camera should be enabled", bool, false)                                     \
+  LIST_ENTRY(color_enabled, "True if color camera should be enabled", bool, true)                                     \
   LIST_ENTRY(color_format, "The format of RGB camera. Options are: bgra, jpeg", std::string, std::string("bgra"))      \
   LIST_ENTRY(color_resolution,                                                                                         \
              "The resolution of the color camera. Options are: 720P, 1080P, 1440P, 1536P, 2160P, 3072P", std::string,  \
@@ -54,7 +54,7 @@
              "match the resolution of the depth camera (true) or the RGB camera (false)",                              \
              bool, true)                                                                                               \
   LIST_ENTRY(point_cloud_as_laser_scan,                                                                                \
-             "whether to reduce a point cloud to a laser scan. Requires depth_enabled=true", bool, true)               \
+             "Whether to reduce a point cloud to a laser scan. Requires depth and color cameras enabled", bool, true)  \
   LIST_ENTRY(tf_prefix, "The prefix prepended to tf frame ID's", std::string, std::string())                           \
   LIST_ENTRY(recording_file, "Path to a recording file to open instead of opening a device", std::string,              \
              std::string(""))                                                                                          \
