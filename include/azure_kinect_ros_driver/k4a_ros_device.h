@@ -35,7 +35,6 @@
 #include "azure_kinect_ros_driver/k4a_calibration_transform_data.h"
 #include "azure_kinect_ros_driver/k4a_ros_device_params.h"
 #include "azure_kinect_ros_driver/laserscan_kinect.h"
-#include "azure_kinect_ros_driver/k4a_depth_undistortion.h"
 
 class K4AROSDevice
 {
@@ -59,11 +58,6 @@ class K4AROSDevice
                              sensor_msgs::ImagePtr& depth_frame,
                              bool rectified);
 
-  k4a_result_t getDepthFrame(const k4a::capture& capture,
-                             sensor_msgs::ImagePtr& raw_depth_frame,
-                             sensor_msgs::ImagePtr& undistorted_depth_frame,
-                             bool rectified);
-
   k4a_result_t getPointCloud(const k4a::capture& capture, sensor_msgs::PointCloud2Ptr& point_cloud);
 
   k4a_result_t getRgbPointCloudInRgbFrame(const k4a::capture& capture, sensor_msgs::PointCloud2Ptr& point_cloud);
@@ -71,8 +65,7 @@ class K4AROSDevice
 
   void getLaserScanFromDepth(const sensor_msgs::ImagePtr& depth_msg,
                              const sensor_msgs::CameraInfo& info_msg,
-                             sensor_msgs::LaserScanPtr& scan_msg,
-                             sensor_msgs::ImagePtr& dbg_img);
+                             sensor_msgs::LaserScanPtr& scan_msg);
 
   k4a_result_t getImuFrame(const k4a_imu_sample_t& capture, sensor_msgs::ImuPtr& imu_frame);
 
@@ -102,8 +95,6 @@ class K4AROSDevice
 
   void framePublisherThread();
   void imuPublisherThread();
-
-  undistort::K4ADepthUndistortion undistort_;
 
   // Gets a timestap from one of the captures images
   std::chrono::microseconds getCaptureTimestamp(const k4a::capture& capture);
