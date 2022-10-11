@@ -229,10 +229,6 @@ K4AROSDevice::K4AROSDevice(const NodeHandle& n, const NodeHandle& p)
   depth_raw_publisher_ = image_transport_.advertise("depth/image_raw", 1);
   depth_raw_camerainfo_publisher_ = node_.advertise<CameraInfo>("depth/camera_info", 1);
 
-  depth_undistorted_publisher_ = image_transport_.advertise("depth/image_undistorted", 1);
-  depth_undistorted_camerainfo_publisher_ = node_.advertise<CameraInfo>("depth/undistorted_camera_info", 1);
-
-
   depth_rect_publisher_ = image_transport_.advertise("depth_to_rgb/image_raw", 1);
   depth_rect_camerainfo_publisher_ = node_.advertise<CameraInfo>("depth_to_rgb/camera_info", 1);
 
@@ -583,7 +579,7 @@ void K4AROSDevice::getLaserScanFromDepth(const ImagePtr& depth_msg,
     }
 
     converter_.setScanHeight(0.8*info_msg.height);
-    converter_.setScanRadius(0.8*info_msg.height/2);
+    // converter_.setScanRadius(0.8*info_msg.height/2);
     converter_.setApplyScanRadius(false);
     converter_.setSensorMountHeight(0.9);
     converter_.setSensorTiltAngle(0.0);
@@ -595,19 +591,21 @@ void K4AROSDevice::getLaserScanFromDepth(const ImagePtr& depth_msg,
 
     converter_initialized_ = true;
 
-    cv_bridge::CvImagePtr cv_ptr;
-    try {
-      cv_ptr = cv_bridge::toCvCopy(depth_msg, sensor_msgs::image_encodings::TYPE_32FC1);
-      cv::Mat depth_image = cv_ptr->image;
-      std::ofstream myfile;
-      myfile.open("ros_floor_depth.csv");
-      myfile << cv::format(depth_image, cv::Formatter::FMT_CSV) << std::endl;
-      myfile.close();
-    } catch (cv_bridge::Exception& e) {
-      ROS_ERROR("cv_bridge exception: %s", e.what());
-    }
+    // cv_bridge::CvImagePtr cv_ptr;
+    // try {
+    //   cv_ptr = cv_bridge::toCvCopy(depth_msg, sensor_msgs::image_encodings::TYPE_32FC1);
+    //   cv::Mat depth_image = cv_ptr->image;
+    //   std::ofstream myfile;
+    //   myfile.open("ros_floor_depth.csv");
+    //   myfile << cv::format(depth_image, cv::Formatter::FMT_CSV) << std::endl;
+    //   myfile.close();
+    // } catch (cv_bridge::Exception& e) {
+    //   ROS_ERROR("cv_bridge exception: %s", e.what());
+    // }
   }
+  std::cout << "getting scan message\n";
   scan_msg = converter_.getLaserScanMsg(depth_msg, info_msg);
+  std::cout << "got scan message\n";
 }
 
 k4a_result_t K4AROSDevice::getRgbPointCloudInRgbFrame(const k4a::capture& capture,
@@ -957,6 +955,7 @@ void K4AROSDevice::framePublisherThread()
     PointCloud2Ptr point_cloud(new PointCloud2);
     LaserScanPtr laser_scan(new LaserScan);
     ImagePtr scan_dbg(new Image);
+    bool laser_can_publish = params_.point_cloud_as_laser_scan;
 
     if (params_.depth_enabled)
     {
@@ -1027,8 +1026,10 @@ void K4AROSDevice::framePublisherThread()
         // Recordings may not have synchronized captures. For unsynchronized captures without depth image skip rect
         // depth frame.
         if (params_.color_enabled &&
-            (depth_rect_publisher_.getNumSubscribers() > 0 ||
-             depth_rect_camerainfo_publisher_.getNumSubscribers() > 0) &&
+            ((depth_rect_publisher_.getNumSubscribers() > 0 ||
+             depth_rect_camerainfo_publisher_.getNumSubscribers() > 0) ||
+             (params_.point_cloud_as_laser_scan &&
+              laserscan_publisher_.getNumSubscribers() > 0)) &&
             (k4a_device_ || capture.get_depth_image() != nullptr)) {
 
           result = getDepthFrame(capture, depth_rect_frame, true);
@@ -1047,6 +1048,17 @@ void K4AROSDevice::framePublisherThread()
             depth_rect_frame->header.stamp = capture_time;
             depth_rect_frame->header.frame_id = calibration_data_.tf_prefix_ + calibration_data_.rgb_camera_frame_;
             depth_rect_publisher_.publish(depth_rect_frame);
+
+            if (laserscan_publisher_.getNumSubscribers() > 0 &&
+                params_.point_cloud_as_laser_scan)
+            {
+              // reduce point cloud to laser scan
+              getLaserScanFromDepth(depth_rect_frame,
+                                    depth_rect_camera_info,
+                                    laser_scan);
+              // publish laser scan
+              laserscan_publisher_.publish(laser_scan);
+            }
 
             // Re-synchronize the header timestamps since we cache the camera calibration message
             depth_rect_camera_info.header.stamp = capture_time;
@@ -1251,24 +1263,6 @@ void K4AROSDevice::framePublisherThread()
         pointcloud_publisher_.publish(point_cloud);
       }
     }
-
-    if (laserscan_publisher_.getNumSubscribers() > 0 &&
-        (k4a_device_ || (capture.get_depth_image() != nullptr)) &&
-        params_.point_cloud_as_laser_scan)
-    {
-      // reduce point cloud to laser scan
-      getLaserScanFromDepth(depth_rect_frame,
-                            depth_rect_camera_info,
-                            laser_scan);
-      // publish laser scan
-      laserscan_publisher_.publish(laser_scan);
-    } 
-    // else {
-    //   std::string isCaptured = (capture.get_depth_image() != nullptr) ? "yes" : "no";
-    //   std::cout << "number of subscribers: " << laserscan_publisher_.getNumSubscribers()
-    //             << std::endl << "depth image captured?" << isCaptured << std::endl;
-
-    // }
 
     if (loop_rate.cycleTime() > loop_rate.expectedCycleTime())
     {

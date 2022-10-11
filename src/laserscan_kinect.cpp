@@ -96,9 +96,10 @@ sensor_msgs::LaserScanPtr LaserScanKinect::getLaserScanMsg(
 
   // Generate and publish debug image
   if (publish_dbg_image_) {
+    std::lock_guard<std::mutex> guard(min_dist_points_indices_);
     dbg_image_ = prepareDbgImage(depth_msg, min_dist_points_indices_);
+    min_dist_points_indices_.clear();
   }
-  min_dist_points_indices_.clear();
 
   return scan_msg_;
 }
@@ -284,7 +285,7 @@ float LaserScanKinect::getSmallestValueInColumn(const sensor_msgs::ImagePtr &dep
     if (depth_raw >= range_min_ && depth_raw <= range_max_) {
       if (ground_remove_enable_) {
         float ground_depth;
-        if (loaded_floor_depth_ && use_floor_depth_map_) { 
+        if (loaded_floor_depth_ && use_floor_depth_map_) {
           ground_depth = floor_map_.at<float>(i, col) - ground_margin_;
         } else {
           ground_depth = dist_to_ground_corrected[i];
@@ -303,14 +304,11 @@ float LaserScanKinect::getSmallestValueInColumn(const sensor_msgs::ImagePtr &dep
     }
   }
 
-  // std::cout << "row: " << depth_min_row << "; col: " << col
-  //           << "; depth_raw: " << depth_min << "; ground depth: "
-  //           << dist_to_ground_corrected[depth_min_row] << std::endl;
-
-  {
+  if (publish_dbg_image_) {
     std::lock_guard<std::mutex> guard(points_indices_mutex_);
     min_dist_points_indices_.push_back({depth_min_row, col});
   }
+
   return depth_min;
 }
 
@@ -342,7 +340,8 @@ void LaserScanKinect::convertDepthToPolarCoords(const sensor_msgs::ImagePtr &dep
       const auto range_in_polar = convert_to_polar(i, depth_min);
       {
         std::lock_guard<std::mutex> guard(scan_msg_mutex_);
-        scan_msg_->ranges[scan_msg_index_[i]] = range_in_polar;
+        unsigned idx = scan_msg_index_[i] < depth_msg->width ? scan_msg_index_[i] : depth_msg->width - 1;
+        scan_msg_->ranges[idx] = range_in_polar;
       }
     }
   };
