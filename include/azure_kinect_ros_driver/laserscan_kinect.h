@@ -103,6 +103,18 @@ class LaserScanKinect {
    */
   void setGroundMargin(const float margin);
   /**
+   * @brief setOverheadRemove enables or disables the feature which remove overhead from scan
+   *
+   * @param enable
+   */
+  void setOverheadRemove(const bool enable) { overhead_remove_enable_ = enable; }
+  /**
+   * @brief setOverheadClearance sets the overhead clearance (in meters)
+   *
+   * @param margin
+   */
+  void setOverheadClearance(const float clearance);
+  /**
    * @brief setTiltCompensation enables or disables the feature which compensates sensor tilt
    *
    * @param enable
@@ -147,6 +159,12 @@ class LaserScanKinect {
   */
   void calcGroundDistancesForImgRows(double vertical_fov);
   /**
+  * @brief calcClearanceDistancesForImgRows calculate coefficients used in ground removing from scan
+  *
+  * @param vertical_fov
+  */
+  void calcClearanceDistancesForImgRows(double vertical_fov);
+  /**
   * @brief calcTiltCompensationFactorsForImgRows calculate factors used in tilt compensation
   *
   * @param vertical_fov
@@ -186,6 +204,8 @@ private:
   float sensor_tilt_angle_{0};            ///< Angle of sensor tilt
   bool  ground_remove_enable_{false};     ///< Determines if remove ground from output scan
   float ground_margin_{0};                ///< Margin for floor remove feature (in meters)
+  bool  overhead_remove_enable_{false};   ///< Determines if remove overhead from output scan
+  float clearance_{0};                    ///< Margin for overhead remove feature (in meters)
   bool  tilt_compensation_enable_{false}; ///< Determines if tilt compensation feature is on
   bool  publish_dbg_image_{false};        ///< Determines if debug image should be published
   unsigned threads_num_{1};               ///< Determines threads number used in image processing
@@ -207,6 +227,9 @@ private:
 
   /// Calculated maximal distances for measurements not included as floor
   std::vector<float> dist_to_ground_corrected;
+
+  /// Calculated maximal distances for measurements not included as overhead clearance
+  std::vector<float> dist_to_clear_corrected;
 
   /// Calculated sensor tilt compensation factors
   std::vector<float> tilt_compensation_factor_;

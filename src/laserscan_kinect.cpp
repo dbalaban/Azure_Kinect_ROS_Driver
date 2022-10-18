@@ -36,6 +36,10 @@ sensor_msgs::LaserScanPtr LaserScanKinect::getLaserScanMsg(
       calcGroundDistancesForImgRows(vertical_fov);
     }
 
+    if (overhead_remove_enable_) {
+      calcClearanceDistancesForImgRows(vertical_fov);
+    }
+
     if (tilt_compensation_enable_) {
       calcTiltCompensationFactorsForImgRows(vertical_fov);
     }
@@ -96,7 +100,7 @@ sensor_msgs::LaserScanPtr LaserScanKinect::getLaserScanMsg(
 
   // Generate and publish debug image
   if (publish_dbg_image_) {
-    std::lock_guard<std::mutex> guard(min_dist_points_indices_);
+    std::lock_guard<std::mutex> guard(points_indices_mutex_);
     dbg_image_ = prepareDbgImage(depth_msg, min_dist_points_indices_);
     min_dist_points_indices_.clear();
   }
@@ -184,6 +188,16 @@ void LaserScanKinect::setGroundMargin (const float margin) {
   }
 }
 
+void LaserScanKinect::setOverheadClearance (const float clearance) {
+  if (clearance > 0) {
+    ground_margin_ = clearance;
+  }
+  else {
+    ground_margin_ = 0;
+    std::runtime_error("Incorrect value of overhead clearance parameter. Set default value: 0.");
+  }
+}
+
 void LaserScanKinect::setThreadsNum(unsigned threads_num) {
   if (threads_num >= 1) {
     threads_num_ = threads_num;
@@ -218,6 +232,24 @@ void LaserScanKinect::calcGroundDistancesForImgRows(double vertical_fov) {
     }
 
     dist_to_ground_corrected[i] -= ground_margin_;
+  }
+}
+
+void LaserScanKinect::calcClearanceDistancesForImgRows(double vertical_fov) {
+  const double alpha = sensor_tilt_angle_ * M_PI / 180.0; // Sensor tilt angle in radians
+  const int img_height = cam_model_.fullResolution().height;
+
+  dist_to_clear_corrected.resize(img_height);
+
+  for(int i = 0; i < img_height; ++i) {
+    // Angle between ray and optical center
+    double delta = vertical_fov * (i - cam_model_.cy() - 0.5) / (static_cast<double>(img_height) - 1);
+
+    if ((delta + alpha) < 0) {
+      dist_to_clear_corrected[i] = clearance_ * cos(delta) / cos(M_PI / 2 + delta + alpha);
+    } else {
+      dist_to_clear_corrected[i] = 100;
+    }
   }
 }
 
@@ -283,23 +315,22 @@ float LaserScanKinect::getSmallestValueInColumn(const sensor_msgs::ImagePtr &dep
 
     // Check if point is in ranges and find min value in column
     if (depth_raw >= range_min_ && depth_raw <= range_max_) {
+      bool isObstacle = true;
       if (ground_remove_enable_) {
-        float ground_depth;
-        if (loaded_floor_depth_ && use_floor_depth_map_) {
-          ground_depth = floor_map_.at<float>(i, col) - ground_margin_;
-        } else {
-          ground_depth = dist_to_ground_corrected[i];
-        }
-        if (depth_m < depth_min && (depth_raw < ground_depth || ground_depth <= 0)) {
-          depth_min = depth_m;
-          depth_min_row = i;
+        float ground_depth = dist_to_ground_corrected[i];
+        if (depth_raw > ground_depth ) {
+          isObstacle = false;
         }
       }
-      else {
-        if (depth_m < depth_min) {
-          depth_min = depth_m;
-          depth_min_row = i;
+      if (overhead_remove_enable_) {
+        float clear_depth = dist_to_clear_corrected[i];
+        if (depth_raw > clear_depth) {
+          isObstacle = false;
         }
+      }
+      if (isObstacle && depth_m < depth_min) {
+        depth_min = depth_m;
+        depth_min_row = i;
       }
     }
   }

@@ -585,6 +585,8 @@ void K4AROSDevice::getLaserScanFromDepth(const ImagePtr& depth_msg,
     converter_.setSensorTiltAngle(0.0);
     converter_.setGroundRemove(true);
     converter_.setGroundMargin(0.03);
+    converter_.setOverheadRemove(true);
+    converter_.setOverheadClearance(0.1);
     converter_.setDepthImgRowStep(2);
 
     converter_.setPublishDbgImgEnable(false);
